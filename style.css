@@ -1,0 +1,86 @@
+/* ページ全体の見た目 */
+body {
+    font-family: sans-serif;
+    background-color: #f0f8ff;
+    text-align: center;
+    margin-top: 50px;
+}
+
+/* タイトルの文字 */
+h1 {
+    color: #333;
+    font-size: 36px;
+}
+
+/* 入力欄 */
+input {
+    padding: 10px;
+    font-size: 16px;
+    width: 60%;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+/* 追加ボタン */
+#addButton {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #008cba;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#addButton:hover {
+    background-color: #005f7f;
+}
+
+/* リスト全体の見た目 */
+ul {
+    list-style-type: none;
+    padding: 0;
+    width: 60%;
+    margin: 20px auto;
+    text-align: left;
+}
+
+/* 各タスク（行）の見た目 */
+li {
+    background-color: white;
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+    font-size: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer; /* マウスを乗せると指の形になる */
+    transition: background-color 0.2s; /* 色が変わるのをなめらかに */
+}
+
+li:hover {
+    background-color: #fafafa; /* マウスが乗った時に少し薄くする */
+}
+
+/* ★完了したタスクの見た目 */
+.done {
+    text-decoration: line-through; /* 打ち消し線 */
+    color: gray; /* 文字をグレーにする */
+    background-color: #f0f0f0;
+}
+
+/* 削除ボタンの見た目 */
+.delete-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.delete-btn:hover {
+    background-color: #cc0000;
+}

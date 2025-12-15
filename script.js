@@ -1,73 +1,104 @@
+// ▼ 認証（Auth）の機能もインポート
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocs, writeBatch } 
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } 
 from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } 
+from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-// ▼▼▼ お前のキーを入れておいたぞ！ ▼▼▼
 const firebaseConfig = {
-    apiKey: "AIzaSyBwigVShnEDons8hg1FkWIROWjJdvUw2xU",
-    authDomain: "mytodolist-90117.firebaseapp.com",
-    projectId: "mytodolist-90117",
-    storageBucket: "mytodolist-90117.firebasestorage.app",
-    messagingSenderId: "302834785844",
-    appId: "1:302834785844:web:09d68bb34c2f7a03be7461"
+  apiKey: "AIzaSyBwigVShnEDons8hg1FkWIROWjJdvUw2xU",
+  authDomain: "mytodolist-90117.firebaseapp.com",
+  projectId: "mytodolist-90117",
+  storageBucket: "mytodolist-90117.firebasestorage.app",
+  messagingSenderId: "302834785844",
+  appId: "1:302834785844:web:09d68bb34c2f7a03be7461"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); // 認証機能を使う準備
 
-// HTMLの部品たち
-const taskInput   = document.getElementById('taskInput');
-const addButton   = document.getElementById('addButton');
-const taskList    = document.getElementById('taskList');
-const resetButton = document.getElementById('resetButton');
+// HTMLの部品
+const loginScreen    = document.getElementById('loginScreen');
+const googleLoginBtn = document.getElementById('googleLoginBtn');
+const appScreen      = document.getElementById('appScreen');
+const userName       = document.getElementById('userName');
+const logoutBtn      = document.getElementById('logoutBtn');
 
-// ★今どの部屋（ID）を使っているかを覚えておく変数
-let currentUserId = "";
-let currentCollectionName = "";
+const taskInput      = document.getElementById('taskInput');
+const addButton      = document.getElementById('addButton');
+const taskList       = document.getElementById('taskList');
 
-// ---------------------------------------------------
-// ■ アプリが起動した瞬間の処理（ここが心臓部！）
-// ---------------------------------------------------
-initApp();
+// 今のユーザー情報を入れておく変数
+let currentUser = null;
+let unsubscribe = null; // 監視を止めるためのスイッチ
 
-function initApp() {
-    // 1. URLの中に「?id=...」があるか調べる
-    const urlParams = new URLSearchParams(window.location.search);
-    const userIdFromUrl = urlParams.get('id');
 
-    if (userIdFromUrl) {
-        // IDがある場合（2回目以降や、スマホにURLを送った時）
-        currentUserId = userIdFromUrl;
-    } else {
-        // IDがない場合（初めて来た時）→ ランダムなIDを作る
-        currentUserId = generateRandomId();
+// 1. ログイン状態を監視する
+
+// ページを開いた時や、ログイン/ログアウトした時に勝手に動く
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // ログインしている時
+        currentUser = user;
+        console.log("ログイン中:", user.displayName);
         
-        // URLを勝手に書き換える（?id=ランダムID をつける）
-        const newUrl = window.location.pathname + '?id=' + currentUserId;
-        window.history.replaceState(null, '', newUrl);
+        // 画面を切り替える
+        loginScreen.style.display = "none";
+        appScreen.style.display = "block";
+        userName.innerText = user.displayName; // 名前を表示
+
+        // データ読み込み開始
+        startRealtimeSync();
+
+    } else {
+        // ログインしていない時
+        currentUser = null;
+        console.log("ログアウト中");
+
+        // 画面を切り替える
+        loginScreen.style.display = "block";
+        appScreen.style.display = "none";
+        
+        // 以前のデータの監視を止める
+        if (unsubscribe) {
+            unsubscribe();
+        }
     }
+});
 
-    // 2. 箱の名前を決める（例：todos_user12345）
-    currentCollectionName = "todos_" + currentUserId;
 
-    console.log("今の部屋ID:", currentUserId);
-    
-    // 3. データの監視をスタート
-    startRealtimeSync();
-}
+// 2. ボタンの動作（ログイン・ログアウト）
 
-// ランダムなIDを作る呪文（8文字の英数字）
-function generateRandomId() {
-    return Math.random().toString(36).substring(2, 10);
-}
+// Googleログインボタン
+googleLoginBtn.addEventListener('click', () => {
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider)
+        .catch((error) => {
+            console.error("ログイン失敗:", error);
+            alert("ログインできませんでした...");
+        });
+});
 
-// ---------------------------------------------------
-// ■ リアルタイム監視
-// ---------------------------------------------------
+// ログアウトボタン
+logoutBtn.addEventListener('click', () => {
+    signOut(auth);
+    location.reload(); // 画面をリロードしてスッキリさせる
+});
+
+// 3. データの同期（自分専用の箱を使う！）
+
 function startRealtimeSync() {
-    const q = query(collection(db, currentCollectionName), orderBy("createdAt", "desc"));
+    if (!currentUser) return;
 
-    onSnapshot(q, (snapshot) => {
+
+    // 「users」フォルダの中の、「自分のID」フォルダの中の、「todos」を使う！
+
+    const myCollection = collection(db, "users", currentUser.uid, "todos");
+    
+    const q = query(myCollection, orderBy("createdAt", "desc"));
+
+    // 監視スタート（unsubscribeに停止スイッチを入れる）
+    unsubscribe = onSnapshot(q, (snapshot) => {
         taskList.innerHTML = "";
         snapshot.forEach((doc) => {
             const taskData = doc.data();
@@ -76,60 +107,42 @@ function startRealtimeSync() {
     });
 }
 
-// 追加ボタン
+
+// 4. タスク追加・更新・削除
+
 addButton.addEventListener('click', async function() {
     const taskText = taskInput.value;
     if (taskText === "") return;
 
-    await addDoc(collection(db, currentCollectionName), {
+    // 自分の箱に追加
+    await addDoc(collection(db, "users", currentUser.uid, "todos"), {
         text: taskText,
         done: false,
         createdAt: serverTimestamp()
     });
-
     taskInput.value = "";
 });
 
-// 画面表示
 function displayTask(id, text, isDone) {
     const newItem = document.createElement('li');
     newItem.innerText = text;
+    if (isDone) newItem.classList.add('done');
 
-    if (isDone) {
-        newItem.classList.add('done');
-    }
-
+    // 完了切り替え
     newItem.addEventListener('click', async function() {
-        const taskRef = doc(db, currentCollectionName, id);
-        await updateDoc(taskRef, {
-            done: !isDone
-        });
+        const taskRef = doc(db, "users", currentUser.uid, "todos", id);
+        await updateDoc(taskRef, { done: !isDone });
     });
 
+    // 削除ボタン
     const deleteButton = document.createElement('button');
     deleteButton.innerText = "削除";
     deleteButton.className = "delete-btn";
-
     deleteButton.addEventListener('click', async function(e) {
         e.stopPropagation();
-        await deleteDoc(doc(db, currentCollectionName, id));
+        await deleteDoc(doc(db, "users", currentUser.uid, "todos", id));
     });
 
     newItem.appendChild(deleteButton);
     taskList.appendChild(newItem);
 }
-
-// 全削除ボタン
-resetButton.addEventListener('click', async function() {
-    const isOk = confirm("このページのデータを全て消しますか？");
-    if (!isOk) return;
-
-    const snapshot = await getDocs(collection(db, currentCollectionName));
-    
-    const batch = writeBatch(db);
-    snapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-    });
-
-    await batch.commit();
-});

@@ -2,14 +2,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebas
 import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocs, writeBatch } 
 from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// ▼▼▼ ここにお前の鍵（APIキー）をコピペしてくれ！！ ▼▼▼
+// ▼▼▼ お前のキーを入れておいたぞ！ ▼▼▼
 const firebaseConfig = {
-    apiKey: "ここに自分のキーを入れる",
-    authDomain: "ここに自分のドメインを入れる",
-    projectId: "ここに自分のプロジェクトIDを入れる",
-    storageBucket: "...",
-    messagingSenderId: "...",
-    appId: "..."
+    apiKey: "AIzaSyBwigVShnEDons8hg1FkWIROWjJdvUw2xU",
+    authDomain: "mytodolist-90117.firebaseapp.com",
+    projectId: "mytodolist-90117",
+    storageBucket: "mytodolist-90117.firebasestorage.app",
+    messagingSenderId: "302834785844",
+    appId: "1:302834785844:web:09d68bb34c2f7a03be7461"
 };
 
 const app = initializeApp(firebaseConfig);

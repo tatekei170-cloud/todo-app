@@ -4,6 +4,7 @@ body {
     background-color: #f0f8ff;
     text-align: center;
     margin-top: 50px;
+    padding-bottom: 50px; /* 下に余裕を持たせる */
 }
 
 /* タイトルの文字 */
@@ -54,22 +55,22 @@ li {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer; /* マウスを乗せると指の形になる */
-    transition: background-color 0.2s; /* 色が変わるのをなめらかに */
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 li:hover {
-    background-color: #fafafa; /* マウスが乗った時に少し薄くする */
+    background-color: #fafafa;
 }
 
-/* ★完了したタスクの見た目 */
+/* 完了したタスクの見た目 */
 .done {
-    text-decoration: line-through; /* 打ち消し線 */
-    color: gray; /* 文字をグレーにする */
+    text-decoration: line-through;
+    color: gray;
     background-color: #f0f0f0;
 }
 
-/* 削除ボタンの見た目 */
+/* 削除ボタン（個別のやつ） */
 .delete-btn {
     background-color: #ff4d4d;
     color: white;
@@ -83,4 +84,20 @@ li:hover {
 
 .delete-btn:hover {
     background-color: #cc0000;
+}
+
+/* ★新機能：全削除ボタンのデザイン */
+#resetButton {
+    margin-top: 30px;
+    padding: 10px 20px;
+    font-size: 14px;
+    background-color: #333; /* 黒に近いグレー */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#resetButton:hover {
+    background-color: #000; /* マウスが乗ると真っ黒に */
 }

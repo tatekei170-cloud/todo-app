@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>TODOアプリ</title>
-    <!-- CSSはここで読み込む -->
+    <!-- CSS読み込み -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <h1>わたしのTODOリスト</h1>
+    <h1>クラウドTODOリスト</h1>
 
     <input type="text" id="taskInput" placeholder="新しいタスクを入力">
     <button id="addButton">追加</button>
@@ -17,8 +17,11 @@
         <!-- ここにタスクが追加されていく -->
     </ul>
 
-    <!-- JavaScriptはここで読み込む（ここがポイント！） -->
-    <script src="script.js"></script>
+    <!-- 全削除ボタン -->
+    <button id="resetButton">データを全削除する</button>
+
+    <!-- ★重要：type="module" を追加したぞ！ -->
+    <script type="module" src="script.js"></script>
 
 </body>
 </html>

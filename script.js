@@ -1,84 +1,117 @@
-// HTMLから必要な部品を探してくる
-const taskInput = document.getElementById('taskInput');
-const addButton = document.getElementById('addButton');
-const taskList  = document.getElementById('taskList');
+// ▼ Firebaseの機能をインターネットから持ってくる（インポート）
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocs, writeBatch } 
+from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// ページが開かれたら、保存されたデータを読み込む
-loadTasks();
+// ▼ お前のアプリ専用の鍵（ここはお前のコードを使ったぞ）
+const firebaseConfig = {
+    apiKey: "AIzaSyBwigVShnEDons8hg1FkWIROWjJdvUw2xU",
+    authDomain: "mytodolist-90117.firebaseapp.com",
+    projectId: "mytodolist-90117",
+    storageBucket: "mytodolist-90117.firebasestorage.app",
+    messagingSenderId: "302834785844",
+    appId: "1:302834785844:web:09d68bb34c2f7a03be7461"
+};
 
-// 追加ボタンが押された時の処理
-addButton.addEventListener('click', function() {
+// ▼ Firebaseを起動！
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app); // データベースを使う準備
+
+// HTMLの部品たち
+const taskInput  = document.getElementById('taskInput');
+const addButton  = document.getElementById('addButton');
+const taskList   = document.getElementById('taskList');
+const resetButton = document.getElementById('resetButton');
+
+// ---------------------------------------------------
+// ■ リアルタイム監視（これが最強の機能！）
+// ---------------------------------------------------
+// データベースの中身が変わるたびに、このコードが勝手に動く！
+// スマホで追加したら、PCの画面も勝手に書き換わるんだ。
+
+const q = query(collection(db, "todos"), orderBy("createdAt", "desc")); // 日付順に並べる設定
+
+onSnapshot(q, (snapshot) => {
+    // 一回リストを空っぽにする
+    taskList.innerHTML = "";
+
+    // データがある分だけループして表示
+    snapshot.forEach((doc) => {
+        const taskData = doc.data();
+        // ID（データの背番号）と中身を渡して表示する
+        displayTask(doc.id, taskData.text, taskData.done);
+    });
+});
+
+// ---------------------------------------------------
+// ■ タスクを追加する
+// ---------------------------------------------------
+addButton.addEventListener('click', async function() {
     const taskText = taskInput.value;
+    if (taskText === "") return;
 
-    if (taskText === "") {
-        return;
-    }
-
-    addTask(taskText); 
-    saveTasks();
+    // ★クラウド（Firestore）にデータを送る！
+    await addDoc(collection(db, "todos"), {
+        text: taskText,
+        done: false,
+        createdAt: serverTimestamp() // 時間も記録しておく
+    });
 
     taskInput.value = "";
 });
 
-// ▼タスクを画面に追加する関数
-// isDone = false は「最初は完了していない状態」という意味
-function addTask(text, isDone = false) {
+// ---------------------------------------------------
+// ■ 画面に表示する（HTMLを作る）
+// ---------------------------------------------------
+function displayTask(id, text, isDone) {
     const newItem = document.createElement('li');
     newItem.innerText = text;
 
-    // もし完了状態なら、最初から線を引いておく
     if (isDone) {
         newItem.classList.add('done');
     }
 
-    // ★タスクをクリックしたら「完了」と「未完了」を切り替える
-    newItem.addEventListener('click', function() {
-        newItem.classList.toggle('done');
-        saveTasks(); // 状態が変わったので保存
+    // クリックしたら「完了/未完了」を切り替える
+    newItem.addEventListener('click', async function() {
+        // ★クラウド上のデータを更新する！
+        const taskRef = doc(db, "todos", id);
+        await updateDoc(taskRef, {
+            done: !isDone // 逆にする（trueならfalse、falseならtrue）
+        });
     });
 
-    // 削除ボタンを作る
+    // 削除ボタン
     const deleteButton = document.createElement('button');
     deleteButton.innerText = "削除";
     deleteButton.className = "delete-btn";
 
-    // 削除ボタンが押されたら
-    deleteButton.addEventListener('click', function(e) {
-        e.stopPropagation(); // ★これを書かないと、削除ボタンを押した時に「完了」も反応しちゃう！
-        taskList.removeChild(newItem);
-        saveTasks();
+    deleteButton.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        // ★クラウド上のデータを削除する！
+        await deleteDoc(doc(db, "todos", id));
     });
 
     newItem.appendChild(deleteButton);
     taskList.appendChild(newItem);
 }
 
-// ▼データを保存する関数（内容と「完了状態」をセットで保存！）
-function saveTasks() {
-    const tasks = [];
-    for (let i = 0; i < taskList.children.length; i++) {
-        const item = taskList.children[i];
-        
-        // タスクの文字と、完了しているか(doneクラスがあるか)をセットにする
-        const taskInfo = {
-            text: item.firstChild.textContent,
-            done: item.classList.contains('done')
-        };
-        
-        tasks.push(taskInfo);
-    }
-    // バージョン2として保存
-    localStorage.setItem('todoList_v2', JSON.stringify(tasks));
-}
+// ---------------------------------------------------
+// ■ 全削除ボタン（一括削除）
+// ---------------------------------------------------
+resetButton.addEventListener('click', async function() {
+    const isOk = confirm("本当にすべてのデータを消していいですか？");
+    if (!isOk) return;
 
-// ▼データを読み込む関数
-function loadTasks() {
-    const savedTasks = localStorage.getItem('todoList_v2');
-    if (savedTasks) {
-        const tasks = JSON.parse(savedTasks);
-        for (const task of tasks) {
-            // 文字と完了状態を渡して追加する
-            addTask(task.text, task.done);
-        }
-    }
-}
+    // 今あるデータを全部取ってくる
+    const snapshot = await getDocs(collection(db, "todos"));
+    
+    // まとめて消す準備
+    const batch = writeBatch(db);
+    snapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+
+    // 実行！
+    await batch.commit();
+    alert("データを全て削除しました！");
+});

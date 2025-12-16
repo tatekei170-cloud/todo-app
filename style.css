@@ -1,28 +1,64 @@
-/* ページ全体の見た目 */
+/* --- 基本設定 --- */
 body {
     font-family: sans-serif;
     background-color: #f0f8ff;
     text-align: center;
-    margin-top: 50px;
-    padding-bottom: 50px; /* 下に余裕を持たせる */
+    margin-top: 20px;
+    padding-bottom: 50px;
 }
 
-/* タイトルの文字 */
 h1 {
     color: #333;
     font-size: 36px;
 }
 
-/* 入力欄 */
-input {
+/* --- ログイン画面 --- */
+.google-btn {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: #4285F4;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* --- アプリ画面 --- */
+.user-info {
+    text-align: right;
+    margin: 10px 10%;
+    font-size: 14px;
+}
+#userName {
+    font-weight: bold;
+}
+#logoutBtn {
+    font-size: 12px;
+    padding: 5px 10px;
+}
+
+/* 入力エリア */
+.input-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    width: 70%;
+    margin: 0 auto;
+}
+#typeSelect {
     padding: 10px;
     font-size: 16px;
-    width: 60%;
     border-radius: 5px;
     border: 1px solid #ddd;
 }
-
-/* 追加ボタン */
+#taskInput {
+    padding: 10px;
+    font-size: 16px;
+    flex-grow: 1;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
 #addButton {
     padding: 10px 20px;
     font-size: 16px;
@@ -32,45 +68,73 @@ input {
     border-radius: 5px;
     cursor: pointer;
 }
-
 #addButton:hover {
     background-color: #005f7f;
 }
 
-/* リスト全体の見た目 */
+/* --- タスクリスト --- */
 ul {
     list-style-type: none;
     padding: 0;
-    width: 60%;
+    width: 70%;
     margin: 20px auto;
     text-align: left;
 }
+/* 子要素のulにはマージンをつけない */
+ul ul {
+    margin: 5px 0 0 0;
+}
 
-/* 各タスク（行）の見た目 */
 li {
+    padding: 0;
+    border-radius: 5px;
+    margin-bottom: 5px;
     background-color: white;
-    border-bottom: 1px solid #ddd;
-    padding: 10px;
-    font-size: 18px;
+}
+.item-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
+    padding: 10px 20px; 
+    border-bottom: 1px solid #ddd;
     transition: background-color 0.2s;
 }
 
-li:hover {
+/* --- アイテムの種類別スタイル --- */
+.list-item .item-content {
+    cursor: pointer;
+}
+.list-item:hover .item-content {
     background-color: #fafafa;
 }
-
-/* 完了したタスクの見た目 */
-.done {
+.list-item.done .item-content {
     text-decoration: line-through;
     color: gray;
     background-color: #f0f0f0;
 }
+.memo-item .item-content {
+    background-color: #fffacd;
+    cursor: pointer;
+}
+.memo-item:hover .item-content {
+    background-color: #f5f5dc;
+}
 
-/* 削除ボタン（個別のやつ） */
+/* --- ボタン --- */
+.add-child-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 10px;
+    flex-shrink: 0;
+}
+.add-child-btn:hover {
+    background-color: #45a049;
+}
 .delete-btn {
     background-color: #ff4d4d;
     color: white;
@@ -80,24 +144,8 @@ li:hover {
     cursor: pointer;
     font-size: 14px;
     margin-left: 10px;
+    flex-shrink: 0;
 }
-
 .delete-btn:hover {
     background-color: #cc0000;
-}
-
-/* ★新機能：全削除ボタンのデザイン */
-#resetButton {
-    margin-top: 30px;
-    padding: 10px 20px;
-    font-size: 14px;
-    background-color: #333; /* 黒に近いグレー */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-#resetButton:hover {
-    background-color: #000; /* マウスが乗ると真っ黒に */
 }

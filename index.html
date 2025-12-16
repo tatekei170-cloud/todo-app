@@ -7,35 +7,40 @@
 </head>
 <body>
 
-    <!-- ▼▼▼ ログインしていない時の画面 ▼▼▼ -->
+    <!-- ログイン画面 -->
     <div id="loginScreen" style="text-align: center; margin-top: 100px;">
         <h1>自分専用TODOリスト</h1>
         <p>Googleアカウントでデータを保存します</p>
-        <button id="googleLoginBtn" style="padding: 15px 30px; font-size: 18px; background-color: #4285F4; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            Googleでログイン
-        </button>
+        <button id="googleLoginBtn" class="google-btn">Googleでログイン</button>
     </div>
 
-    <!-- ▼▼▼ ログインした後の画面（最初は隠しておく） ▼▼▼ -->
+    <!-- メインアプリ画面 -->
     <div id="appScreen" style="display: none;">
         
-        <!-- 誰がログインしてるか表示 -->
-        <div style="text-align: right; margin: 10px;">
-            <span id="userName" style="font-weight: bold;"></span> さん
-            <button id="logoutBtn" style="font-size: 12px; padding: 5px 10px;">ログアウト</button>
+        <!-- ユーザー情報とログアウトボタン -->
+        <div class="user-info">
+            <span id="userName"></span> さん
+            <button id="logoutBtn">ログアウト</button>
         </div>
 
-        <h1>マイTODOリスト</h1>
+        <h1>階層 TODOリスト</h1>
 
-        <input type="text" id="taskInput" placeholder="新しいタスクを入力">
-        <button id="addButton">追加</button>
+        <!-- 入力エリア -->
+        <div class="input-area">
+            <select id="typeSelect">
+                <option value="list">リスト</option>
+                <option value="memo">メモ</option>
+            </select>
+            <input type="text" id="taskInput" placeholder="新しいタスクを入力">
+            <button id="addButton">追加</button>
+        </div>
 
-        <ul id="taskList">
-            <!-- ここにタスクが追加されていく -->
-        </ul>
+        <!-- タスクが表示される場所 -->
+        <ul id="taskList"></ul>
 
     </div>
 
+    <!-- JavaScriptの読み込み -->
     <script type="module" src="script.js"></script>
 
 </body>

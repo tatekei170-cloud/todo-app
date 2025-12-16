@@ -1,9 +1,9 @@
-// ▼ 認証（Auth）の機能もインポート
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } 
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, writeBatch } 
 from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } 
 from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyBwigVShnEDons8hg1FkWIROWjJdvUw2xU",
@@ -13,136 +13,241 @@ const firebaseConfig = {
   messagingSenderId: "302834785844",
   appId: "1:302834785844:web:09d68bb34c2f7a03be7461"
 };
+
+// --- 初期設定 ---
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app); // 認証機能を使う準備
+const auth = getAuth(app);
 
-// HTMLの部品
+// --- HTML要素の取得 ---
 const loginScreen    = document.getElementById('loginScreen');
 const googleLoginBtn = document.getElementById('googleLoginBtn');
 const appScreen      = document.getElementById('appScreen');
 const userName       = document.getElementById('userName');
 const logoutBtn      = document.getElementById('logoutBtn');
-
+const typeSelect     = document.getElementById('typeSelect');
 const taskInput      = document.getElementById('taskInput');
 const addButton      = document.getElementById('addButton');
 const taskList       = document.getElementById('taskList');
 
-// 今のユーザー情報を入れておく変数
+// --- グローバル変数 ---
 let currentUser = null;
-let unsubscribe = null; // 監視を止めるためのスイッチ
+let unsubscribe = null;
 
-
-// 1. ログイン状態を監視する
-
-// ページを開いた時や、ログイン/ログアウトした時に勝手に動く
+// --- 認証処理 ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // ログインしている時
         currentUser = user;
-        console.log("ログイン中:", user.displayName);
-        
-        // 画面を切り替える
         loginScreen.style.display = "none";
         appScreen.style.display = "block";
-        userName.innerText = user.displayName; // 名前を表示
-
-        // データ読み込み開始
+        userName.innerText = user.displayName;
         startRealtimeSync();
-
     } else {
-        // ログインしていない時
         currentUser = null;
-        console.log("ログアウト中");
-
-        // 画面を切り替える
         loginScreen.style.display = "block";
         appScreen.style.display = "none";
-        
-        // 以前のデータの監視を止める
-        if (unsubscribe) {
-            unsubscribe();
-        }
+        if (unsubscribe) unsubscribe();
     }
 });
 
-
-// 2. ボタンの動作（ログイン・ログアウト）
-
-// Googleログインボタン
 googleLoginBtn.addEventListener('click', () => {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-        .catch((error) => {
-            console.error("ログイン失敗:", error);
-            alert("ログインできませんでした...");
-        });
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(console.error);
 });
 
-// ログアウトボタン
 logoutBtn.addEventListener('click', () => {
     signOut(auth);
-    location.reload(); // 画面をリロードしてスッキリさせる
 });
 
-// 3. データの同期（自分専用の箱を使う！）
-
+// --- データ同期 ---
 function startRealtimeSync() {
     if (!currentUser) return;
-
-
-    // 「users」フォルダの中の、「自分のID」フォルダの中の、「todos」を使う！
-
     const myCollection = collection(db, "users", currentUser.uid, "todos");
-    
-    const q = query(myCollection, orderBy("createdAt", "desc"));
+    const q = query(myCollection, orderBy("createdAt", "asc"));
 
-    // 監視スタート（unsubscribeに停止スイッチを入れる）
     unsubscribe = onSnapshot(q, (snapshot) => {
-        taskList.innerHTML = "";
+        const allItems = [];
         snapshot.forEach((doc) => {
-            const taskData = doc.data();
-            displayTask(doc.id, taskData.text, taskData.done);
+            allItems.push({ id: doc.id, ...doc.data() });
         });
+        buildTreeAndRender(allItems);
     });
 }
 
+// --- 画面構築 ---
 
-// 4. タスク追加・更新・削除
+function buildTreeAndRender(items) {
+    taskList.innerHTML = "";
+    const itemMap = new Map();
+    items.forEach(item => itemMap.set(item.id, { ...item, children: [] }));
 
-addButton.addEventListener('click', async function() {
-    const taskText = taskInput.value;
-    if (taskText === "") return;
+    const rootItems = [];
+    items.forEach(item => {
+        if (item.parentId && itemMap.has(item.parentId)) {
+            itemMap.get(item.parentId).children.push(itemMap.get(item.id));
+        } else {
+            rootItems.push(itemMap.get(item.id));
+        }
+    });
 
-    // 自分の箱に追加
+    rootItems.forEach(item => {
+        const li = createListItem(item, itemMap, 0);
+        taskList.appendChild(li);
+    });
+}
+
+function createListItem(item, itemMap, level) {
+    const li = document.createElement('li');
+    const itemContent = document.createElement('div');
+    itemContent.className = 'item-content';
+
+    const indentSize = 30;
+    itemContent.style.paddingLeft = `${20 + level * indentSize}px`;
+
+    const textSpan = document.createElement('span');
+    textSpan.innerText = item.text;
+
+    const buttonWrapper = document.createElement('div');
+
+    const addChildBtn = document.createElement('button');
+    addChildBtn.innerText = "+子";
+    addChildBtn.className = 'add-child-btn';
+    
+    // ★★★ ここを大改造！「リスト」か「メモ」かを選べるようにする ★★★
+    addChildBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // 1. まず名前を聞く
+        const childText = prompt(`「${item.text}」の子要素のテキストを入力してください：`);
+        if (!childText) return; // 名前がなければ終了
+
+        // 2. 次にタイプを聞く
+        const childTypeInput = prompt(`子要素のタイプを入力してください (list / memo):`, 'list');
+        if (!childTypeInput) return; // タイプ入力がなければ終了
+
+        const childType = childTypeInput.toLowerCase() === 'memo' ? 'memo' : 'list';
+        
+        // 3. データを追加
+        addNewTask(childText, item.id, childType);
+    });
+    // ★★★ 改造終わり ★★★
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerText = "削除";
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm(`「${item.text}」とその子要素を全て削除しますか？`)) {
+            await deleteItemAndChildren(item.id, itemMap);
+        }
+    });
+    
+    buttonWrapper.appendChild(addChildBtn);
+    buttonWrapper.appendChild(deleteBtn);
+    itemContent.appendChild(textSpan);
+    itemContent.appendChild(buttonWrapper);
+    li.appendChild(itemContent);
+    
+    if (item.type === 'memo') {
+        li.classList.add('memo-item');
+        
+        // メモをクリックしたら「編集モード」に！
+        itemContent.addEventListener('click', function(e) {
+            if (e.target.tagName === 'BUTTON') return;
+
+            const currentEditing = document.querySelector('.edit-input');
+            if(currentEditing) currentEditing.dispatchEvent(new Event('blur'));
+
+            const editInput = document.createElement('input');
+            editInput.type = 'text';
+            editInput.className = 'edit-input';
+            editInput.value = textSpan.innerText;
+
+            textSpan.style.display = 'none';
+            itemContent.prepend(editInput);
+            editInput.focus();
+
+            // 入力が終わったら保存
+            const saveChanges = async () => {
+                const newText = editInput.value;
+                const taskRef = doc(db, "users", currentUser.uid, "todos", item.id);
+                if (newText.trim() !== "") {
+                    await updateDoc(taskRef, { text: newText });
+                }
+                textSpan.style.display = '';
+                if(itemContent.contains(editInput)) itemContent.removeChild(editInput);
+            };
+            
+            editInput.addEventListener('blur', saveChanges);
+            editInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') editInput.blur();
+            });
+        });
+
+    } else {
+        li.classList.add('list-item');
+        if (item.done) li.classList.add('done');
+        // クリックで完了状態をトグル
+        itemContent.addEventListener('click', async (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            const taskRef = doc(db, "users", currentUser.uid, "todos", item.id);
+            await updateDoc(taskRef, { done: !item.done });
+        });
+    }
+
+    if (item.children && item.children.length > 0) {
+        const childUl = document.createElement('ul');
+        item.children.forEach(child => {
+            const childLi = createListItem(child, itemMap, level + 1);
+            childUl.appendChild(childLi);
+        });
+        li.appendChild(childUl);
+    }
+
+    return li;
+}
+
+// --- データ操作 ---
+
+// ★ ここも改造！typeをオプションとして受け取るようにした
+async function addNewTask(text, parentId = null, type = null) {
+    // typeが指定されていなければ、画面上部のセレクトボックスの値を使う
+    const taskType = type === null ? typeSelect.value : type; 
+    
+    if (text.trim() === "") return;
     await addDoc(collection(db, "users", currentUser.uid, "todos"), {
-        text: taskText,
+        text: text,
         done: false,
+        type: taskType,
+        parentId: parentId,
         createdAt: serverTimestamp()
     });
+}
+
+addButton.addEventListener('click', () => {
+    addNewTask(taskInput.value, null); // 親子関係なし（トップレベル）で追加
     taskInput.value = "";
 });
 
-function displayTask(id, text, isDone) {
-    const newItem = document.createElement('li');
-    newItem.innerText = text;
-    if (isDone) newItem.classList.add('done');
+async function deleteItemAndChildren(itemId, itemMap) {
+    const idsToDelete = new Set();
+    
+    function findChildrenRecursive(currentId) {
+        idsToDelete.add(currentId);
+        const currentItem = itemMap.get(currentId);
+        if (currentItem && currentItem.children) {
+            currentItem.children.forEach(child => {
+                findChildrenRecursive(child.id);
+            });
+        }
+    }
+    
+    findChildrenRecursive(itemId);
 
-    // 完了切り替え
-    newItem.addEventListener('click', async function() {
-        const taskRef = doc(db, "users", currentUser.uid, "todos", id);
-        await updateDoc(taskRef, { done: !isDone });
+    const batch = writeBatch(db);
+    idsToDelete.forEach(id => {
+        const docRef = doc(db, "users", currentUser.uid, "todos", id);
+        batch.delete(docRef);
     });
 
-    // 削除ボタン
-    const deleteButton = document.createElement('button');
-    deleteButton.innerText = "削除";
-    deleteButton.className = "delete-btn";
-    deleteButton.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        await deleteDoc(doc(db, "users", currentUser.uid, "todos", id));
-    });
-
-    newItem.appendChild(deleteButton);
-    taskList.appendChild(newItem);
+    await batch.commit();
 }
